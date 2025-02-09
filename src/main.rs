@@ -9,7 +9,6 @@ use std::{error::Error, path::PathBuf};
 use tokenizers::Tokenizer;
 use tracing::{debug, Level};
 use utils::files::hub_load_local_safetensors;
-
 mod utils;
 
 #[tokio::main]
@@ -22,10 +21,11 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
     let repo_id = String::from("meta-llama/Llama-3.2-3B");
     let repo_type = String::from("meta-llama/Llama-3.2-3B");
-
     let device = Device::new_metal(0)?;
+    debug!("🚧 {:#?}", device);
 
     let api = Api::new()?;
+    debug!(" 🚧 {:#?}", api);
     let api = api.repo(Repo::with_revision(
         repo_id,
         RepoType::Model,

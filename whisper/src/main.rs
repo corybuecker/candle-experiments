@@ -2,7 +2,8 @@ mod decoder;
 
 use candle_core::{Device, Tensor};
 use candle_nn::VarBuilder;
-use candle_transformers::models::whisper::{self, audio, SAMPLE_RATE};
+use candle_transformers::models::whisper::{self, audio};
+use rand::random;
 use std::{error::Error, fs::File, path::PathBuf, str::FromStr};
 use symphonia::{
     core::{
@@ -41,9 +42,6 @@ async fn main() -> Result<(), Box<dyn Error>> {
         )?
     };
 
-    // debug!("{:#?}", model);
-    //
-
     let mut pcm_data: Vec<f32> = Vec::new();
     let sample = PathBuf::from_str("output.wav")?;
     let sample = File::open(sample)?;
@@ -60,9 +58,6 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
     let decode_opts = DecoderOptions::default();
     let mut decoder = get_codecs().make(&track.codec_params, &decode_opts)?;
-
-    //   debug!("{:#?}", decoder);
-    //
 
     while let Ok(packet) = format.next_packet() {
         let bytes = decoder.decode(&packet)?;
@@ -101,30 +96,20 @@ async fn main() -> Result<(), Box<dyn Error>> {
         }
     }
 
-    let mel_binary = include_bytes!("../melfilters.bytes");
+    let mel_binary = include_bytes!("../melfilters128.bytes");
     let mut mel_filters = vec![0f32; mel_binary.len() / 4];
     <byteorder::LittleEndian as byteorder::ByteOrder>::read_f32_into(mel_binary, &mut mel_filters);
 
     let mel = audio::pcm_to_mel(&config, &pcm_data, &mel_filters);
     let mel_length = mel.len();
+    debug!("🚧 {:#?}", mel_length);
 
-    let mel = Tensor::from_vec(mel, (1, 80, mel_length / 80), &device)?;
-
-    debug!("{:#?}", mel_length);
+    let mel = Tensor::from_vec(mel, (1, 128, mel_length / 128), &device)?;
 
     let model = whisper::model::Whisper::load(&vb, config)?;
-    let mut decoder = decoder::Decoder::new(
-        decoder::Model::Normal(model),
-        tokenizer,
-        287149871976,
-        &device,
-        None,
-        None,
-        false,
-        false,
-    )?;
+    let mut decoder = decoder::Decoder::new(decoder::Model::Normal(model), tokenizer, &device)?;
 
-    let results = decoder.run(&mel)?;
+    decoder.run(&mel)?;
 
     Ok(())
 }
